@@ -81,10 +81,10 @@ function onResults(results) {
     const ratio = mouthHeight / mouthWidth;
 
     if (ratio > 0.55) { // 这个阈值可以根据实际测试微调
-      statusDiv.innerText = "亲亲！👂👂";
+      statusDiv.innerText = "小小邬！👂👂";
       drawEars(landmarks);
     } else {
-      statusDiv.innerText = "来，撅个嘴看看？";
+      statusDiv.innerText = "来，亲亲一下？";
     }
   }
   canvasCtx.restore();
@@ -108,4 +108,5 @@ function drawEars(landmarks) {
 </body>
 
 </html>
+
 
