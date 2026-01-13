@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>撅嘴检测 - 变出耳朵</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    body { text-align: center; background: #f0f0f0; font-family: sans-serif; }
+    .container { position: relative; display: inline-block; margin-top: 20px; }
+    video, canvas { position: absolute; left: 0; top: 0; border-radius: 10px; }
+    #status { margin-top: 500px; font-size: 24px; color: #ff4757; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h2>撅起嘴亲亲，变出耳朵 👂</h2>
+  <div class="container">
+    <video id="webcam" style="display:none;" autoplay playsinline></video>
+    <canvas id="output_canvas" width="640" height="480"></canvas>
+  </div>
+  <div id="status">检测中...</div>
+
+<script>
+const videoElement = document.getElementById('webcam');
+const canvasElement = document.getElementById('output_canvas');
+const canvasCtx = canvasElement.getContext('2d');
+const statusDiv = document.getElementById('status');
+
+// 初始化 FaceMesh
+const faceMesh = new FaceMesh({locateFile: (file) => {
+  return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+}});
+
+faceMesh.setOptions({
+  maxNumFaces: 1,
+  refineLandmarks: true,
+  minDetectionConfidence: 0.5,
+  minTrackingConfidence: 0.5
+});
+
+faceMesh.onResults(onResults);
+
+// 启动摄像头
+const camera = new URLSearchParams(window.location.search).get('camera');
+navigator.mediaDevices.getUserMedia({video: {width: 640, height: 480}})
+  .then(stream => {
+    videoElement.srcObject = stream;
+    videoElement.play();
+    renderLoop();
+  });
+
+async function renderLoop() {
+  await faceMesh.send({image: videoElement});
+  requestAnimationFrame(renderLoop);
+}
+
+function onResults(results) {
+  canvasCtx.save();
+  canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+  
+  // 绘制视频背景
+  canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+
+  if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+    const landmarks = results.multiFaceLandmarks[0];
+
+    // 获取关键点 (基于 Mediapipe 索引)
+    // 61: 左嘴角, 291: 右嘴角
+    // 0: 上唇顶, 17: 下唇底
+    const leftMouth = landmarks[61];
+    const rightMouth = landmarks[291];
+    const topLip = landmarks[0];
+    const bottomLip = landmarks[17];
+
+    // 计算嘴巴的宽度和高度
+    const mouthWidth = Math.hypot(leftMouth.x - rightMouth.x, leftMouth.y - rightMouth.y);
+    const mouthHeight = Math.hypot(topLip.x - bottomLip.x, topLip.y - bottomLip.y);
+
+    // 撅嘴判断逻辑：高宽比增加
+    // 正常状态比值较小，撅嘴时嘴巴变窄变高
+    const ratio = mouthHeight / mouthWidth;
+
+    if (ratio > 0.55) { // 这个阈值可以根据实际测试微调
+      statusDiv.innerText = "亲亲！👂👂";
+      drawEars(landmarks);
+    } else {
+      statusDiv.innerText = "来，撅个嘴看看？";
+    }
+  }
+  canvasCtx.restore();
+}
+
+function drawEars(landmarks) {
+  // 获取面部两侧的坐标（用于放置耳朵）
+  // 234: 脸左侧, 454: 脸右侧
+  const leftFace = landmarks[234];
+  const rightFace = landmarks[454];
+
+  canvasCtx.font = "80px serif";
+  canvasCtx.textAlign = "center";
+  
+  // 绘制左耳朵
+  canvasCtx.fillText("👂", leftFace.x * canvasElement.width - 40, leftFace.y * canvasElement.height);
+  // 绘制右耳朵 (翻转效果可以通过 scale 实现，这里简单处理)
+  canvasCtx.fillText("👂", rightFace.x * canvasElement.width + 40, rightFace.y * canvasElement.height);
+}
+</script>
+</body>
+</html>
